@@ -60,6 +60,9 @@ export interface BrowserProfile {
     proxyId?: number
     proxyConfig?: ProxyConfig
 
+    // Cookie管理
+    cookies?: Cookie[]
+
     // 账号平台
     platform?: string
     accountTags?: string
@@ -72,6 +75,19 @@ export interface BrowserProfile {
 
     createdAt?: string
     updatedAt?: string
+}
+
+// Cookie类型定义
+export interface Cookie {
+    name: string
+    value: string
+    domain: string
+    path?: string
+    httpOnly?: boolean
+    secure?: boolean
+    session?: boolean
+    expires?: number
+    sameSite?: 'strict' | 'lax' | 'no_restriction' | 'unspecified'
 }
 
 // 浏览器内核类型
@@ -103,6 +119,17 @@ export interface ProxyConfig {
     status?: string
     remark?: string
     createdAt?: string
+}
+
+// 代理测试结果类型
+export interface ProxyTestResult {
+    success: boolean
+    ip?: string
+    country?: string
+    region?: string
+    latency?: number
+    error?: string
+    location?: string
 }
 
 // API响应类型

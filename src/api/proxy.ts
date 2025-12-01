@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { ProxyConfig, ApiResponse } from '@/types'
+import type { ProxyConfig, ProxyTestResult, ApiResponse } from '@/types'
 
 // 添加代理
 export function addProxy(data: Partial<ProxyConfig>) {
@@ -29,4 +29,9 @@ export function deleteProxy(id: number) {
 // 测试代理
 export function testProxy(id: number) {
     return request.post<any, ApiResponse<boolean>>(`/proxy/${id}/test`)
+}
+
+// 测试代理并返回详细结果
+export function testProxyDetails(config: Partial<ProxyConfig>) {
+    return request.post<any, ApiResponse<ProxyTestResult>>('/proxy/test-details', config)
 }

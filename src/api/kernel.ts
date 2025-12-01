@@ -42,8 +42,14 @@ export function setDefaultKernel(id: number) {
 }
 
 // 生成User-Agent
-export function generateUserAgent(id: number, os: string = 'Windows') {
+export function generateUserAgent(
+    id: number,
+    os: string = 'Windows',
+    random: boolean = false,
+    chromeVersion?: number
+) {
     return request.get<any, ApiResponse<string>>(`/kernel/${id}/generate-ua`, {
-        params: { os }
+        params: { os, random, chromeVersion }
     })
 }
+
