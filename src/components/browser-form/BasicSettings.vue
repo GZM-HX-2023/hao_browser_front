@@ -138,7 +138,9 @@ onMounted(async () => {
   if (kernelStore.kernels.length === 0) {
     await kernelStore.loadKernels()
   }
-  if (!modelValue.value.kernelId && kernelStore.defaultKernel) {
+  
+  // 只在创建模式下（没有 kernelId 且没有 userAgent）才自动设置默认内核和生成 UA
+  if (!modelValue.value.kernelId && !modelValue.value.userAgent && kernelStore.defaultKernel) {
     await kernelStore.loadDefaultKernel()
     if (kernelStore.defaultKernel) {
       modelValue.value.kernelId = kernelStore.defaultKernel.id

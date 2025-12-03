@@ -3,7 +3,7 @@
     <!-- 返回按钮 -->
     <div class="page-header">
       <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
-      <h2 class="page-title">新建浏览器环境</h2>
+      <h2 class="page-title">{{ pageTitle }}</h2>
     </div>
 
     <div class="content-wrapper">
@@ -24,7 +24,7 @@
           </div>
 
           <!-- 表单内容滚动区 -->
-          <div class="form-content" ref="formContentRef" @scroll="handleScroll">
+          <div class="form-content" ref="formContentRef" @scroll="handleScroll" v-if="dataReady">
             <!-- 基础设置 -->
             <div id="basic" class="form-block">
               <div class="block-title">基础设置</div>
@@ -63,7 +63,7 @@
           <div class="form-actions">
             <el-button @click="goBack">取消</el-button>  
             <el-button type="primary" @click="handleSave" :loading="saving">
-              保存并启动
+              保存
             </el-button>
           </div>
         </div>
@@ -122,6 +122,12 @@
               <span class="value">{{ languageModeText }}</span>
             </div>
 
+            <!-- 界面语言 -->
+            <div class="summary-item">
+              <span class="label">界面语言</span>
+              <span class="value">{{ uiLanguageModeText }}</span>
+            </div>
+
             <!-- 分辨率 -->
             <div class="summary-item">
               <span class="label">分辨率</span>
@@ -152,6 +158,24 @@
               <span class="value">{{ audioModeText }}</span>
             </div>
 
+            <!-- 媒体设备 -->
+            <div class="summary-item">
+              <span class="label">媒体设备</span>
+              <span class="value">{{ mediaDevicesModeText }}</span>
+            </div>
+
+            <!-- ClientRects -->
+            <div class="summary-item">
+              <span class="label">ClientRects</span>
+              <span class="value">{{ clientRectsModeText }}</span>
+            </div>
+
+            <!-- SpeechVoices -->
+            <div class="summary-item">
+              <span class="label">SpeechVoices</span>
+              <span class="value">{{ speechVoicesModeText }}</span>
+            </div>
+
             <!-- WebGL元数据 -->
             <div class="summary-item">
               <span class="label">WebGL元数据</span>
@@ -159,6 +183,12 @@
                 {{ formData.webglVendor }}<br/>
                 <span class="text-secondary">{{ formData.webglRenderer }}</span>
               </span>
+            </div>
+
+            <!-- WebGPU -->
+            <div class="summary-item">
+              <span class="label">WebGPU</span>
+              <span class="value">{{ webGpuModeText }}</span>
             </div>
 
             <!-- CPU -->
@@ -170,13 +200,43 @@
             <!-- RAM -->
             <div class="summary-item">
               <span class="label">RAM</span>
-              <span class="value">{{ formData.memory || 8 }} GB</span>
+              <span class="value">{{ formData.memoryGb || 8 }} GB</span>
             </div>
 
-            <!-- 设备 ID -->
+            <!-- 设备名称 -->
             <div class="summary-item" v-if="formData.deviceName">
-              <span class="label">设备 ID</span>
+              <span class="label">设备名称</span>
               <span class="value text-small">{{ formData.deviceName }}</span>
+            </div>
+
+            <!-- MAC地址 -->
+            <div class="summary-item" v-if="formData.macAddress">
+              <span class="label">MAC地址</span>
+              <span class="value text-small">{{ formData.macAddress }}</span>
+            </div>
+
+            <!-- Do Not Track -->
+            <div class="summary-item">
+              <span class="label">Do Not Track</span>
+              <span class="value">{{ doNotTrackText }}</span>
+            </div>
+
+            <!-- 端口扫描保护 -->
+            <div class="summary-item">
+              <span class="label">端口扫描保护</span>
+              <span class="value">{{ portScanProtectionText }}</span>
+            </div>
+
+            <!-- 硬件加速 -->
+            <div class="summary-item">
+              <span class="label">硬件加速</span>
+              <span class="value">{{ hardwareAccelerationText }}</span>
+            </div>
+
+            <!-- 禁用TLS特性 -->
+            <div class="summary-item">
+              <span class="label">禁用TLS特性</span>
+              <span class="value">{{ disableTlsFeaturesText }}</span>
             </div>
           </div>
 
@@ -199,12 +259,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { BrowserProfile } from '@/types'
-import { createBrowser } from '@/api/browser'
+import { createBrowser, getBrowser, updateBrowser } from '@/api/browser'
 import { generateFingerprint } from '@/api/fingerprint'
 import { useKernelStore } from '@/stores/kernel'
 import BasicSettings from '@/components/browser-form/BasicSettings.vue'
@@ -214,6 +274,7 @@ import FingerprintSettings from '@/components/browser-form/FingerprintSettings.v
 import AdvancedSettings from '@/components/browser-form/AdvancedSettings.vue'
 
 const router = useRouter()
+const route = useRoute()
 const kernelStore = useKernelStore()
 
 const activeSection = ref('basic')
@@ -221,6 +282,9 @@ const saving = ref(false)
 const generating = ref(false)
 const formContentRef = ref<HTMLElement | null>(null)
 const isScrolling = ref(false)
+const dataReady = ref(false)  // 数据加载完成标志
+const isEditMode = computed(() => !!route.params.id)
+const pageTitle = computed(() => isEditMode.value ? '编辑浏览器环境' : '新建浏览器环境')
 
 const navItems = [
   { id: 'basic', label: '基础设置' },
@@ -238,19 +302,28 @@ const formData = ref<Partial<BrowserProfile>>({
   webrtcMode: 'disabled',
   timezoneMode: 'ip_based',
   geolocationMode: 'ask',
-  languageMode: 'auto',
+  languageMode: 'ip_based',
+  uiLanguageMode: 'based_on_language',
+  resolutionMode: 'user_agent_based',
   canvasMode: 'noise',
   webglMode: 'noise',
   audioMode: 'noise',
   clientRectsMode: 'noise',
   speechVoicesMode: 'noise',
+  mediaDevicesMode: 'noise',
+  webGpuMode: 'webgl_based',
   fontMode: 'default',
   webglVendor: '',
   webglRenderer: '',
   cpuCores: 4,
-  memory: 8,
+  memoryGb: 8,
   deviceName: '',
-  macAddress: ''
+  macAddress: '',
+  doNotTrack: 'default',
+  portScanProtection: 'enabled',
+  portScanProtectionPorts: '',
+  hardwareAcceleration: 'default',
+  disableTlsFeatures: 'disabled'
 })
 
 // 滚动到指定区域
@@ -353,9 +426,31 @@ const geolocationModeText = computed(() => {
 const languageModeText = computed(() => {
   const modes: Record<string, string> = {
     'auto': '基于 User-Agent',
+    'ip_based': '基于 IP',
     'custom': '自定义'
   }
   return modes[formData.value.languageMode || 'auto'] || '未设置'
+})
+
+const uiLanguageModeText = computed(() => {
+  const modes: Record<string, string> = {
+    'based_on_language': '基于语言',
+    'real': '真实',
+    'custom': '自定义'
+  }
+  if (formData.value.uiLanguageMode === 'custom' && formData.value.customUiLanguage) {
+    // 显示具体的语言，如 "中文 (简体)"
+    const langOptions = [
+      { label: '英语 (美国)', value: 'en-US' },
+      { label: '英语 (英国)', value: 'en-GB' },
+      { label: '英语', value: 'en' },
+      { label: '中文 (简体)', value: 'zh-CN' },
+      { label: '中文 (繁体)', value: 'zh-TW' },
+    ]
+    const found = langOptions.find(opt => opt.value === formData.value.customUiLanguage)
+    return found ? found.label : formData.value.customUiLanguage
+  }
+  return modes[formData.value.uiLanguageMode || 'based_on_language'] || '未设置'
 })
 
 const fontModeText = computed(() => {
@@ -390,6 +485,76 @@ const audioModeText = computed(() => {
   return modes[formData.value.audioMode || 'noise'] || '未设置'
 })
 
+const mediaDevicesModeText = computed(() => {
+  const modes: Record<string, string> = {
+    'noise': '噪点 [Auto]',
+    'off': '关闭'
+  }
+  return modes[formData.value.mediaDevicesMode || 'noise'] || '未设置'
+})
+
+const clientRectsModeText = computed(() => {
+  const modes: Record<string, string> = {
+    'noise': '噪点 [89FA6C8F]',
+    'off': '关闭'
+  }
+  if (formData.value.clientRectsMode === 'noise') {
+      return '噪点 [89FA6C8F]'
+  }
+  return modes[formData.value.clientRectsMode || 'noise'] || '未设置'
+})
+
+const speechVoicesModeText = computed(() => {
+  const modes: Record<string, string> = {
+    'noise': '噪点',
+    'off': '关闭'
+  }
+  return modes[formData.value.speechVoicesMode || 'noise'] || '未设置'
+})
+
+const webGpuModeText = computed(() => {
+  const modes: Record<string, string> = {
+    'webgl_based': '基于 WebGL',
+    'custom': '自定义',
+    'off': '关闭'
+  }
+  return modes[formData.value.webGpuMode || 'webgl_based'] || '未设置'
+})
+
+const doNotTrackText = computed(() => {
+  const modes: Record<string, string> = {
+    'default': '默认',
+    'enabled': '开启',
+    'disabled': '关闭'
+  }
+  return modes[formData.value.doNotTrack || 'default'] || '未设置'
+})
+
+const portScanProtectionText = computed(() => {
+  const modes: Record<string, string> = {
+    'enabled': '启用',
+    'disabled': '关闭'
+  }
+  return modes[formData.value.portScanProtection || 'enabled'] || '未设置'
+})
+
+const hardwareAccelerationText = computed(() => {
+  const modes: Record<string, string> = {
+    'default': '默认',
+    'enabled': '开启',
+    'disabled': '关闭'
+  }
+  return modes[formData.value.hardwareAcceleration || 'default'] || '未设置'
+})
+
+const disableTlsFeaturesText = computed(() => {
+  const modes: Record<string, string> = {
+    'disabled': '关闭',
+    'enabled': '开启'
+  }
+  return modes[formData.value.disableTlsFeatures || 'disabled'] || '未设置'
+})
+
 // 表单更新处理
 const handleFormUpdate = () => {
   // 表单数据更新时，概要会自动更新（响应式）
@@ -411,7 +576,7 @@ const generateRandomFingerprint = async () => {
         webglVendor: res.data.webglVendor,
         webglRenderer: res.data.webglRenderer,
         cpuCores: res.data.cpuCores,
-        memory: res.data.memory,
+        memoryGb: res.data.memoryGb,
         deviceName: res.data.deviceName,
         macAddress: res.data.macAddress,
         timezone: res.data.timezone,
@@ -444,15 +609,21 @@ const handleSave = async () => {
 
   saving.value = true
   try {
-    const res = await createBrowser(formData.value as BrowserProfile)
+    let res
+    if (isEditMode.value) {
+      res = await updateBrowser(Number(route.params.id), formData.value as BrowserProfile)
+    } else {
+      res = await createBrowser(formData.value as BrowserProfile)
+    }
+
     if (res.code === 200) {
-      ElMessage.success('浏览器创建成功')
+      ElMessage.success(isEditMode.value ? '浏览器更新成功' : '浏览器创建成功')
       router.push('/browser-list')
     } else {
-      ElMessage.error(res.message || '创建失败')
+      ElMessage.error(res.message || (isEditMode.value ? '更新失败' : '创建失败'))
     }
   } catch (error: any) {
-    ElMessage.error('创建失败: ' + (error.message || '未知错误'))
+    ElMessage.error((isEditMode.value ? '更新失败: ' : '创建失败: ') + (error.message || '未知错误'))
   } finally {
     saving.value = false
   }
@@ -466,11 +637,64 @@ const goBack = () => {
 // 初始化
 onMounted(async () => {
   await kernelStore.loadKernels()
-  await kernelStore.loadDefaultKernel()
   
-  // 设置默认内核
-  if (kernelStore.defaultKernel) {
-    formData.value.kernelId = kernelStore.defaultKernel.id
+  if (isEditMode.value) {
+    // 编辑模式：加载现有数据
+    try {
+      const res = await getBrowser(Number(route.params.id))
+      if (res.code === 200 && res.data) {
+        const data = res.data
+        
+        // 提取 kernelId
+        const kernelId = data.browserKernel?.id
+        
+        // 解析 cookies (从 JSON 字符串转为数组)
+        let cookies = []
+        if (data.cookies && typeof data.cookies === 'string') {
+          try {
+            cookies = JSON.parse(data.cookies)
+          } catch (e) {
+            console.error('Failed to parse cookies:', e)
+          }
+        }
+        
+        // 处理代理配置：根据是否有 name 字段判断是已保存的代理还是自定义代理
+        // 如果 proxyConfig.name 为空，说明是自定义代理，应该在"自定义"标签显示
+        const hasProxyConfig = !!data.proxyConfig
+        const isCustomProxy = hasProxyConfig && !data.proxyConfig?.name
+        
+        // 使用 Object.assign 以保持响应式
+        Object.assign(formData.value, {
+          ...data,
+          kernelId: kernelId,
+          cookies: cookies,
+          // 移除嵌套的对象,避免冲突
+          browserKernel: undefined,
+          proxyConfig: isCustomProxy ? data.proxyConfig : undefined,  // 只在自定义代理时保留
+          proxyId: (hasProxyConfig && !isCustomProxy && data.proxyConfig) ? data.proxyConfig.id : undefined  // 只在已保存代理时设置
+        })
+        
+        console.log('Loaded browser data:', formData.value)
+        
+        // 数据加载完成,允许渲染子组件
+        dataReady.value = true
+      } else {
+        ElMessage.error('加载浏览器数据失败')
+        router.push('/browser-list')
+      }
+    } catch (error) {
+      console.error(error)
+      ElMessage.error('加载浏览器数据失败')
+      router.push('/browser-list')
+    }
+  } else {
+    // 创建模式：加载默认内核
+    await kernelStore.loadDefaultKernel()
+    if (kernelStore.defaultKernel) {
+      formData.value.kernelId = kernelStore.defaultKernel.id
+    }
+    // 创建模式立即允许渲染
+    dataReady.value = true
   }
 })
 </script>

@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '新建浏览器' }
             },
             {
+                path: '/browser/edit/:id',
+                name: 'EditBrowser',
+                component: () => import('@/views/CreateBrowser.vue'),
+                meta: { title: '编辑浏览器' }
+            },
+            {
                 path: '/proxy',
                 name: 'ProxyManagement',
                 component: () => import('@/views/ProxyManagement.vue'),

@@ -2,44 +2,39 @@
   <div class="advanced-settings">
     <el-form-item label="Do Not Track">
       <el-radio-group v-model="modelValue.doNotTrack">
-        <el-radio label="default">默认</el-radio>
-        <el-radio label="enabled">启用</el-radio>
-        <el-radio label="disabled">禁用</el-radio>
+        <el-radio-button label="default">默认</el-radio-button>
+        <el-radio-button label="enabled">开启</el-radio-button>
+        <el-radio-button label="disabled">关闭</el-radio-button>
       </el-radio-group>
-      <div style="margin-top: 5px; color: #909399; font-size: 12px">
-        请求网站不要跟踪用户行为
-      </div>
     </el-form-item>
 
     <el-form-item label="端口扫描保护">
-      <el-radio-group v-model="modelValue.portScanProtection">
-        <el-radio label="enabled">启用</el-radio>
-        <el-radio label="disabled">禁用</el-radio>
-      </el-radio-group>
-      <div style="margin-top: 5px; color: #909399; font-size: 12px">
-        限制浏览器只能访问80和443端口
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 100%">
+        <el-radio-group v-model="modelValue.portScanProtection">
+          <el-radio-button label="enabled">启用</el-radio-button>
+          <el-radio-button label="disabled">关闭</el-radio-button>
+        </el-radio-group>
+        <el-input 
+          v-if="modelValue.portScanProtection === 'enabled'"
+          v-model="modelValue.portScanProtectionPorts"
+          placeholder="选填，允许被扫描的端口"
+        />
       </div>
     </el-form-item>
 
     <el-form-item label="硬件加速">
       <el-radio-group v-model="modelValue.hardwareAcceleration">
-        <el-radio label="default">默认</el-radio>
-        <el-radio label="enabled">启用</el-radio>
-        <el-radio label="disabled">禁用</el-radio>
+        <el-radio-button label="default">默认</el-radio-button>
+        <el-radio-button label="enabled">开启</el-radio-button>
+        <el-radio-button label="disabled">关闭</el-radio-button>
       </el-radio-group>
-      <div style="margin-top: 5px; color: #909399; font-size: 12px">
-        使用GPU加速页面渲染,某些情况下可能需要禁用
-      </div>
     </el-form-item>
 
     <el-form-item label="禁用TLS特性">
       <el-radio-group v-model="modelValue.disableTlsFeatures">
-        <el-radio label="disabled">不禁用</el-radio>
-        <el-radio label="enabled">禁用</el-radio>
+        <el-radio-button label="enabled">开启</el-radio-button>
+        <el-radio-button label="disabled">关闭</el-radio-button>
       </el-radio-group>
-      <div style="margin-top: 5px; color: #909399; font-size: 12px">
-        禁用某些TLS特性以提高兼容性
-      </div>
     </el-form-item>
 
     <el-divider>启动参数</el-divider>

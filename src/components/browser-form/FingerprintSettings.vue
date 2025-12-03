@@ -58,37 +58,75 @@
     <!-- 语言 -->
     <el-form-item label="语言">
       <el-radio-group v-model="modelValue.languageMode">
-        <el-radio label="ip_based">基于IP</el-radio>
-        <el-radio label="custom">自定义</el-radio>
+        <el-radio-button label="ip_based">基于 IP</el-radio-button>
+        <el-radio-button label="custom">自定义</el-radio-button>
       </el-radio-group>
-      <el-input 
-        v-if="modelValue.languageMode === 'custom'"
-        v-model="modelValue.customLanguage"
-        placeholder="如: zh-CN, en-US"
-        style="margin-top: 10px"
-      />
+      
+      <div v-if="modelValue.languageMode === 'custom'" class="language-custom-panel">
+        <div class="language-list">
+          <div v-for="(lang, index) in selectedLanguages" :key="index" class="language-item">
+            <span>{{ getLanguageLabel(lang) }}</span>
+            <el-button 
+              type="danger" 
+              link 
+              :icon="Delete" 
+              @click="removeLanguage(index)"
+            />
+          </div>
+        </div>
+        
+        <div class="add-language-wrapper">
+          <el-popover
+            placement="bottom-start"
+            :width="200"
+            trigger="click"
+          >
+            <template #reference>
+              <el-button type="primary" link :icon="Plus">添加语言</el-button>
+            </template>
+            <div class="language-options">
+              <div 
+                v-for="option in languageOptions" 
+                :key="option.value"
+                class="language-option-item"
+                @click="addLanguage(option.value)"
+              >
+                {{ option.label }}
+              </div>
+            </div>
+          </el-popover>
+        </div>
+      </div>
     </el-form-item>
 
     <!-- 界面语言 -->
     <el-form-item label="界面语言">
       <el-radio-group v-model="modelValue.uiLanguageMode">
-        <el-radio label="based_on_language">基于语言</el-radio>
-        <el-radio label="custom">自定义</el-radio>
+        <el-radio-button label="based_on_language">基于语言</el-radio-button>
+        <el-radio-button label="real">真实</el-radio-button>
+        <el-radio-button label="custom">自定义</el-radio-button>
       </el-radio-group>
-      <el-input 
+      <el-select
         v-if="modelValue.uiLanguageMode === 'custom'"
         v-model="modelValue.customUiLanguage"
-        placeholder="如: zh-CN"
-        style="margin-top: 10px"
-      />
+        placeholder="请选择界面语言"
+        style="margin-top: 10px; width: 100%"
+        filterable
+      >
+        <el-option 
+          v-for="option in languageOptions" 
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
     </el-form-item>
 
     <!-- 分辨率 -->
     <el-form-item label="分辨率">
       <el-radio-group v-model="modelValue.resolutionMode">
-        <el-radio label="user_agent_based">基于User-Agent</el-radio>
-        <el-radio label="random">随机</el-radio>
-        <el-radio label="custom">自定义</el-radio>
+        <el-radio-button label="user_agent_based">预定义</el-radio-button>
+        <el-radio-button label="custom">自定义</el-radio-button>
       </el-radio-group>
     </el-form-item>
 
@@ -211,14 +249,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Delete, Plus } from '@element-plus/icons-vue'
 import type { BrowserProfile } from '@/types'
 import { generateFingerprint } from '@/api/fingerprint'
 
 const modelValue = defineModel<Partial<BrowserProfile>>({ required: true })
 const generating = ref(false)
+
+const languageOptions = [
+  { label: '英语 (美国)', value: 'en-US' },
+  { label: '英语 (英国)', value: 'en-GB' },
+  { label: '英语', value: 'en' },
+  { label: '中文 (简体)', value: 'zh-CN' },
+  { label: '中文 (繁体)', value: 'zh-TW' },
+  { label: '日语', value: 'ja-JP' },
+  { label: '韩语', value: 'ko-KR' },
+  { label: '法语', value: 'fr-FR' },
+  { label: '德语', value: 'de-DE' },
+  { label: '俄语', value: 'ru-RU' },
+  { label: '西班牙语', value: 'es-ES' },
+  { label: '葡萄牙语', value: 'pt-PT' },
+  { label: '意大利语', value: 'it-IT' },
+  { label: '越南语', value: 'vi-VN' },
+  { label: '泰语', value: 'th-TH' },
+  { label: '印尼语', value: 'id-ID' }
+]
+
+const selectedLanguages = computed({
+  get: () => {
+    if (!modelValue.value.customLanguage) return []
+    return modelValue.value.customLanguage.split(',').map(s => s.trim()).filter(Boolean)
+  },
+  set: (val) => {
+    modelValue.value.customLanguage = val.join(',')
+  }
+})
+
+const getLanguageLabel = (code: string) => {
+  const option = languageOptions.find(opt => opt.value === code)
+  return option ? option.label : code
+}
+
+const addLanguage = (code: string) => {
+  if (!selectedLanguages.value.includes(code)) {
+    selectedLanguages.value = [...selectedLanguages.value, code]
+  }
+}
+
+const removeLanguage = (index: number) => {
+  const newList = [...selectedLanguages.value]
+  newList.splice(index, 1)
+  selectedLanguages.value = newList
+}
 
 async function handleGenerateFingerprint() {
   generating.value = true
@@ -241,6 +325,11 @@ async function handleGenerateFingerprint() {
     modelValue.value.deviceName = fp.deviceName
     modelValue.value.macAddress = fp.macAddress
     
+    // 如果生成了语言，也同步更新 customLanguage
+    if (fp.language) {
+        modelValue.value.customLanguage = fp.language
+    }
+
     ElMessage.success('指纹已生成')
   } catch (error: any) {
     ElMessage.error('生成失败')
@@ -253,5 +342,57 @@ async function handleGenerateFingerprint() {
 <style scoped>
 .fingerprint-settings {
   padding: 20px 0;
+}
+
+.language-custom-panel {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.language-list {
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  padding: 5px;
+  margin-bottom: 10px;
+}
+
+.language-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #fff;
+  border-bottom: 1px solid #ebeef5;
+  font-size: 14px;
+  color: #606266;
+}
+
+.language-item:last-child {
+  border-bottom: none;
+}
+
+.language-item:hover {
+  background-color: #fafafa;
+}
+
+.add-language-wrapper {
+  padding-left: 5px;
+}
+
+.language-options {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.language-option-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #606266;
+}
+
+.language-option-item:hover {
+  background-color: #f5f7fa;
+  color: var(--primary-color);
 }
 </style>

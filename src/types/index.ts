@@ -12,6 +12,7 @@ export interface BrowserProfile {
     userAgent?: string
     screenWidth?: number
     screenHeight?: number
+    screenResolution?: string
     timezone?: string
     language?: string
 
@@ -30,6 +31,7 @@ export interface BrowserProfile {
     canvasMode?: string
     canvasNoise?: string
     webglMode?: string
+    webglNoise?: string
     webglVendor?: string
     webglRenderer?: string
     audioMode?: string
@@ -53,6 +55,7 @@ export interface BrowserProfile {
     headless?: boolean
     doNotTrack?: string
     portScanProtection?: string
+    portScanProtectionPorts?: string
     hardwareAcceleration?: string
     disableTlsFeatures?: string
 

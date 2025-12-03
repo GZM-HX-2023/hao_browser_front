@@ -352,7 +352,7 @@ const handleBatchDelete = async () => {
 const handleAction = async (command: string, row: BrowserProfile) => {
   switch (command) {
     case 'edit':
-      router.push(`/browser/create?id=${row.id}`)
+      router.push(`/browser/edit/${row.id}`)
       break
     case 'duplicate':
       // TODO: 实现复制功能
